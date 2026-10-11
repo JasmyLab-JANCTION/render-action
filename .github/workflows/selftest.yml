@@ -1,0 +1,59 @@
+# Temporary self-test (removed before the Marketplace release: a listed action repository must not contain workflows).
+name: selftest
+on:
+  workflow_dispatch:
+jobs:
+  preview:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        id: render
+        with:
+          api-key: ${{ secrets.JANCTION_RENDER_API_KEY }}
+          scene-file: https://render.janction.jp/samples/cube_scene.py
+          kind: preview
+          frames: "1"
+          max-cost-yen: 0
+      - name: check outputs
+        shell: bash
+        run: |
+          test -n "${{ steps.render.outputs.job-id }}"
+          ls render-output
+          echo "job ${{ steps.render.outputs.job-id }} gpu ${{ steps.render.outputs.gpu-seconds }} yen ${{ steps.render.outputs.charged-yen }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: preview-${{ matrix.os }}
+          path: render-output
+  final-and-refusals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        id: final
+        with:
+          api-key: ${{ secrets.JANCTION_RENDER_API_KEY }}
+          scene-file: https://render.janction.jp/samples/cube_scene.py
+          kind: final
+          frames: "1-8"
+          width: 640
+          height: 360
+          samples: 16
+          output: mp4
+          max-cost-yen: 0
+      - name: the MP4 is there
+        shell: bash
+        run: ls -la render-output && test -f render-output/output.mp4
+      - uses: ./
+        id: nokey
+        continue-on-error: true
+        with:
+          api-key: ""
+          scene-file: https://render.janction.jp/samples/cube_scene.py
+      - name: an empty key is refused
+        shell: bash
+        run: test "${{ steps.nokey.outcome }}" = "failure"

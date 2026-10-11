@@ -1,0 +1,25 @@
+# Copy to .github/workflows/ in your repository.
+name: render release video
+on:
+  release:
+    types: [published]
+jobs:
+  video:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: JasmyLab-JANCTION/render-action@v1
+        with:
+          api-key: ${{ secrets.JANCTION_RENDER_API_KEY }}
+          scene-file: scenes/turntable.blend
+          kind: final
+          frames: "1-96"
+          width: 1920
+          height: 1080
+          output: mp4
+          max-cost-yen: 200
+          timeout-seconds: 1800
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-video
+          path: render-output
